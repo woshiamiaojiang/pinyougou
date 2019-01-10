@@ -444,3 +444,67 @@ public Result add(@RequestBody TbSeller seller){
 
 ![1547052170063](assets/1547052170063.png)
 
+# 4.商家审核
+
+## 4.1需求分析
+
+商家申请入驻后，需要网站运营人员在运营商后台进行审核，审核后商家才可以登陆系统。
+
+ 
+
+**状态值：**  0：未审核   1：已审核   2：审核未通过   3：关闭
+
+## 4.2商家待审核列表
+
+修改seller_1.html
+
+引入JS
+
+```html
+<script type="text/javascript" src="../plugins/angularjs/angular.min.js">  </script>
+<!-- 分页组件开始 -->
+<script src="../plugins/angularjs/pagination.js"></script>
+<link rel="stylesheet" href="../plugins/angularjs/pagination.css">
+<!-- 分页组件结束 -->
+<script type="text/javascript" src="../js/base_pagination.js">  </script>
+<script type="text/javascript" src="../js/service/sellerService.js">  </script>
+<script type="text/javascript" src="../js/controller/baseController.js">  </script>
+<script type="text/javascript" src="../js/controller/sellerController.js">  </script>
+```
+
+指令
+
+```html
+<body class="hold-transition skin-red sidebar-mini"  ng-app="pinyougou" ng-controller="sellerController" ng-init="searchEntity={status:'0'}">
+```
+
+加入分页控件
+
+```html
+<tm-pagination conf="paginationConf"></tm-pagination>
+```
+
+循环
+
+```html
+<tr ng-repeat="entity in list">
+    <td><input  type="checkbox"></td>
+    <td>{{entity.sellerId}}</td>
+    <td>{{entity.name}}</td>
+    <td>{{entity.nickName}}</td>
+    <td>{{entity.linkmanName}}</td>
+    <td>{{entity.telephone}}</td>
+    <td class="text-center">
+        <button type="button" class="btn bg-olive btn-xs" data-toggle="modal" data-target="#sellerModal" >详情</button>
+    </td>
+</tr>
+```
+
+测试
+
+![1547116388263](assets/1547116388263.png)
+
+## 4.3商家详情
+
+![1547116412408](assets/1547116412408.png)
+
