@@ -624,3 +624,396 @@ IP地址已经固定为192.168.25.133  ，请设置你的仅主机网段为25。
 
 登录名为root  密码为itcast
 
+# 6.商家后台-商品录入【商品图片上传】
+
+## 6.1需求分析
+
+在商品录入界面实现多图片上传
+
+![img](assets/clip_image002-1547261445770.jpg)
+
+当用户点击新建按钮，弹出上传窗口
+
+![img](assets/clip_image004-1547261445770.jpg)
+
+## 6.2后端代码
+
+### 6.2.1 工具类
+
+（1）pinyougou-common工程pom.xml引入依赖
+
+```xml
+<dependencies>
+    <!-- 文件上传组件 -->
+    <dependency>
+        <groupId>org.csource.fastdfs</groupId>
+        <artifactId>fastdfs</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>commons-fileupload</groupId>
+        <artifactId>commons-fileupload</artifactId>
+    </dependency>
+</dependencies>
+```
+
+（2）将“资源/fastDFS/工具类”的FastDFSClient.java
+拷贝到pinyougou-common工程
+
+```java
+package util;
+
+import org.csource.common.NameValuePair;
+import org.csource.fastdfs.ClientGlobal;
+import org.csource.fastdfs.StorageClient1;
+import org.csource.fastdfs.StorageServer;
+import org.csource.fastdfs.TrackerClient;
+import org.csource.fastdfs.TrackerServer;
+
+public class FastDFSClient {
+
+   private TrackerClient trackerClient = null;
+   private TrackerServer trackerServer = null;
+   private StorageServer storageServer = null;
+   private StorageClient1 storageClient = null;
+   
+   public FastDFSClient(String conf) throws Exception {
+      if (conf.contains("classpath:")) {
+         conf = conf.replace("classpath:", this.getClass().getResource("/").getPath());
+      }
+      ClientGlobal.init(conf);
+      trackerClient = new TrackerClient();
+      trackerServer = trackerClient.getConnection();
+      storageServer = null;
+      storageClient = new StorageClient1(trackerServer, storageServer);
+   }
+   
+   /**
+    * 上传文件方法
+    * <p>Title: uploadFile</p>
+    * <p>Description: </p>
+    * @param fileName 文件全路径
+    * @param extName 文件扩展名，不包含（.）
+    * @param metas 文件扩展信息
+    * @return
+    * @throws Exception
+    */
+   public String uploadFile(String fileName, String extName, NameValuePair[] metas) throws Exception {
+      String result = storageClient.upload_file1(fileName, extName, metas);
+      return result;
+   }
+   
+   public String uploadFile(String fileName) throws Exception {
+      return uploadFile(fileName, null, null);
+   }
+   
+   public String uploadFile(String fileName, String extName) throws Exception {
+      return uploadFile(fileName, extName, null);
+   }
+   
+   /**
+    * 上传文件方法
+    * <p>Title: uploadFile</p>
+    * <p>Description: </p>
+    * @param fileContent 文件的内容，字节数组
+    * @param extName 文件扩展名
+    * @param metas 文件扩展信息
+    * @return
+    * @throws Exception
+    */
+   public String uploadFile(byte[] fileContent, String extName, NameValuePair[] metas) throws Exception {
+      
+      String result = storageClient.upload_file1(fileContent, extName, metas);
+      return result;
+   }
+   
+   public String uploadFile(byte[] fileContent) throws Exception {
+      return uploadFile(fileContent, null, null);
+   }
+   
+   public String uploadFile(byte[] fileContent, String extName) throws Exception {
+      return uploadFile(fileContent, extName, null);
+   }
+}
+```
+
+### 6.2.2 配置文件
+
+（1）将“资源/fastDFS/配置文件”文件夹中的 fdfs_client.conf 拷贝到pinyougou-shop-web工程config文件夹
+
+```properties
+# connect timeout in seconds
+# default value is 30s
+connect_timeout=30
+
+# network timeout in seconds
+# default value is 30s
+network_timeout=60
+
+# the base path to store log files
+base_path=/home/fastdfs
+
+# tracker_server can ocur more than once, and tracker_server format is
+#  "host:port", host can be hostname or ip address
+tracker_server=192.168.25.133:22122
+
+#standard log level as syslog, case insensitive, value list:
+### emerg for emergency
+### alert
+### crit for critical
+### error
+### warn for warning
+### notice
+### info
+### debug
+log_level=info
+
+# if use connection pool
+# default value is false
+# since V4.05
+use_connection_pool = false
+
+# connections whose the idle time exceeds this time will be closed
+# unit: second
+# default value is 3600
+# since V4.05
+connection_pool_max_idle_time = 3600
+
+# if load FastDFS parameters from tracker server
+# since V4.05
+# default value is false
+load_fdfs_parameters_from_tracker=false
+
+# if use storage ID instead of IP address
+# same as tracker.conf
+# valid only when load_fdfs_parameters_from_tracker is false
+# default value is false
+# since V4.05
+use_storage_id = false
+
+# specify storage ids filename, can use relative or absolute path
+# same as tracker.conf
+# valid only when load_fdfs_parameters_from_tracker is false
+# since V4.05
+storage_ids_filename = storage_ids.conf
+
+
+#HTTP settings
+http.tracker_server_port=80
+
+#use "#include" directive to include HTTP other settiongs
+##include http.conf
+```
+
+（2）在pinyougou-shop-web工程application.properties添加配置
+
+```properties
+FILE_SERVER_URL=http://192.168.25.133/
+```
+
+（3）在pinyougou-shop-web工程springmvc.xml添加配置：
+
+```xml
+<!-- 配置多媒体解析器 -->
+<bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+   <property name="defaultEncoding" value="UTF-8"></property>
+   <!-- 设定文件上传的最大值5MB，5*1024*1024 -->
+   <property name="maxUploadSize" value="5242880"></property>
+</bean>
+```
+
+### 6.2.3 控制层
+
+在pinyougou-shop-web新建UploadController.java
+
+```java
+package com.pinyougou.controller;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import entity.Result;
+import util.FastDFSClient;
+
+@RestController
+public class UploadController {
+
+    @Value("${FILE_SERVER_URL}")
+    private String file_server_url;
+
+    @RequestMapping("/upload")
+    public Result upload(MultipartFile file){
+
+        String originalFilename = file.getOriginalFilename();//获取文件名
+        String extName=originalFilename.substring( originalFilename.lastIndexOf(".")+1);//得到扩展名
+
+        try {
+            util.FastDFSClient client=new FastDFSClient("classpath:config/fdfs_client.conf");
+            String fileId = client.uploadFile(file.getBytes(), extName);
+            String url=file_server_url+fileId;//图片完整地址
+            return new Result(true, url);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new Result(false, "上传失败");
+        }
+
+    }
+
+
+}
+```
+
+## 6.3前端代码
+
+### 6.3.1 服务层
+
+（1）在pinyougou-shop-web工程创建uploadService.js
+
+```javascript
+app.service('uploadService',function($http){
+   
+   //上传文件
+   this.uploadFile=function(){
+      var formdata=new FormData();
+      formdata.append('file',file.files[0]);//file 文件上传框的name
+      
+      return $http({
+         url:'../upload.do',       
+         method:'post',
+         data:formdata,
+         headers:{ 'Content-Type':undefined },
+         transformRequest: angular.identity       
+      });
+   }
+});
+```
+
+anjularjs对于post和get请求默认的Content-Type header 是application/json。通过设置‘Content-Type’: undefined，这样浏览器会帮我们把Content-Type 设置为 multipart/form-data. 
+
+通过设置 transformRequest: angular.identity ，anjularjs transformRequest function 将序列化我们的formdata object. 
+
+（2）将uploadService服务注入到goodsController.js 中
+
+```javascript
+//商品控制层（商家后台）
+app.controller('goodsController' ,function($scope,$controller   ,goodsService,itemCatService,uploadService){
+```
+
+（3）在goods_edit.html引入js
+
+```html
+<script type="text/javascript" src="../js/service/uploadService.js">  </script>
+```
+
+### 6.3.2 上传图片
+
+（1）goodsController编写代码
+
+```java
+/**
+ * 上传图片
+ */
+$scope.uploadFile=function(){	  
+    uploadService.uploadFile().success(function(response) {        	
+        if(response.success){//如果上传成功，取出url
+            $scope.image_entity.url=response.message;//设置文件地址
+        }else{
+            alert(response.message);
+        }
+    }).error(function() {           
+        alert("上传发生错误");
+    });        
+};    
+```
+
+（2）修改图片上传窗口，调用上传方法，回显上传图片
+
+```html
+<td>颜色</td>
+		      		<td><input  class="form-control" placeholder="颜色" ng-model="image_entity.color">  </td>
+
+
+<button class="btn btn-primary" type="button" ng-click="uploadFile()">
+    
+<img  src="{{image_entity.url}}" width="200px" height="200px">
+```
+
+（3）修改新建按钮
+
+```html
+<button type="button" class="btn btn-default" title="新建" data-target="#uploadModal"  data-toggle="modal" ng-click="image_entity={}" ><i class="fa fa-file-o"></i> 新建</button> 
+```
+
+测试
+
+![1547274650991](assets/1547274650991.png)
+
+
+
+### 6.3.3 图片列表
+
+（1）在goodsController.js增加方法
+
+```javascript
+$scope.entity={goods:{},goodsDesc:{itemImages:[]}};//定义页面实体结构
+//添加图片列表
+$scope.add_image_entity=function(){    	
+    $scope.entity.goodsDesc.itemImages.push($scope.image_entity);
+}
+```
+
+（2）修改上传窗口的保存按钮
+
+```html
+<button class="btn btn-success" ng-click="add_image_entity()" data-dismiss="modal" aria-hidden="true">保存</button>
+```
+
+（3）遍历图片列表
+
+```html
+<tr ng-repeat="pojo in entity.goodsDesc.itemImages">
+	 <td>{{pojo.color}}</td>
+	 <td><img alt="" src="{{pojo.url}}" width="100px" height="100px"></td>
+	<td><button type="button" class="btn btn-default" title="删除" ><i class="fa fa-trash-o"></i> 删除</button></td>
+</tr>
+```
+
+
+
+测试
+
+![1547296065997](assets/1547296065997.png)
+
+
+
+![1547296583277](assets/1547296583277.png)
+
+![1547296930661](assets/1547296930661.png)
+
+
+
+### 6.3.4 移除图片
+
+在goodsController.js增加代码
+
+```javascript
+//列表中移除图片
+$scope.remove_image_entity=function(index){
+    $scope.entity.goodsDesc.itemImages.splice(index,1);
+}
+```
+
+修改列表中的删除按钮
+
+```html
+<button type="button" class="btn btn-default" title="删除" ng-click="remove_image_entity($index)"><i class="fa fa-trash-o"></i> 删除</button>
+```
+
+测试
+
+![1547297331643](assets/1547297331643.png)
+
+![1547297339383](assets/1547297339383.png)
+

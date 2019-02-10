@@ -241,7 +241,7 @@ index.html
 
 （3）拷贝后端控制层代码
 
-![img](file:///C:/Users/miion/AppData/Local/Temp/msohtmlclip1/01/clip_image008.jpg)
+![1547207626761](assets/1547207626761.png)、
 
 ## 3.3前端代码
 
